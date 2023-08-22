@@ -8,7 +8,7 @@ import string
 
 app = FastAPI()
 security = HTTPBearer()
-cache = TTLCache(maxsize=100, ttl=300)  # Cache to store posts for 5 minutes
+cache = TTLCache(maxsize=100, ttl=600)  # Cache to store posts for 5 minutes
 
 # Pydantic schema for signup request
 class SignupRequest(BaseModel):
@@ -42,10 +42,30 @@ def generate_token():
     token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
     return token
 
+#Find value in cache
+def find_value_in_cache(value):
+    for key, cached_value in cache.items():
+        if cached_value == value:
+            return key  # Return the key associated with the value
+    return None  # Return None if the value is not found in the cache
+         
+    
+    
+
 def authenticate_token(token: HTTPAuthorizationCredentials = Depends(security)):
     # Check if token is valid and present in cache
-    if token.credentials not in cache:
+    print(token.credentials)
+    print(cache)
+    # Usage
+    value_to_find = token.credentials
+
+    key_found = find_value_in_cache(value_to_find)
+
+    if key_found:
+        print(f"Value '{value_to_find}' found in cache with key '{key_found}'")
+    else:
         raise HTTPException(status_code=401, detail="Invalid token")
+
     return token.credentials
 
 @app.post("/signup", response_model=TokenResponse)
@@ -62,6 +82,7 @@ def login(user: LoginRequest):
     # For simplicity, we'll assume the login is successful
     token = generate_token()
     cache[user.email] = token  # Store the token in the cache with the email as the key
+    print(cache);
     return TokenResponse(access_token=token, token_type="bearer")
 
 @app.post("/addPost", response_model=PostResponse)
